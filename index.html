@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Heures supplémentaires</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --text:#1c2333; --muted:#6b7280;
+    --border:#e2e6ee; --accent:#2f5597; --accent2:#4472c4;
+    --input-bg:#fff8d6; --input-border:#e6d060;
+    --total-bg:#eef2fb; --ot-pos:#c00000; --ot-neg:#1a7a3c;
+    --week-bg:#8faadc; --week-text:#ffffff;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  :root:not([data-theme="light"]){
+    @media (prefers-color-scheme: dark){
+      --bg:#151a24; --card:#1d2431; --text:#e7ebf3; --muted:#9aa4b2;
+      --border:#2c3444; --accent:#6f9ceb; --accent2:#4472c4;
+      --input-bg:#3a3420; --input-border:#6b5f2a;
+      --total-bg:#232c3d; --ot-pos:#ff8a80; --ot-neg:#66d19e;
+      --week-bg:#2c3f66; --week-text:#dce6ff;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#151a24; --card:#1d2431; --text:#e7ebf3; --muted:#9aa4b2;
+    --border:#2c3444; --accent:#6f9ceb; --accent2:#4472c4;
+    --input-bg:#3a3420; --input-border:#6b5f2a;
+    --total-bg:#232c3d; --ot-pos:#ff8a80; --ot-neg:#66d19e;
+    --week-bg:#2c3f66; --week-text:#dce6ff;
+  }
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system, "Segoe UI", Arial, sans-serif;
+    font-size:15px; line-height:1.4;
+  }
+  header{
+    position:sticky; top:env(safe-area-inset-top,0px); z-index:10;
+    background:var(--accent); color:#fff;
+    padding:14px 16px calc(14px + env(safe-area-inset-top,0px)) 16px;
+    margin-top:calc(-1 * env(safe-area-inset-top,0px));
+    padding-top:calc(14px + env(safe-area-inset-top,0px));
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  header h1{margin:0; font-size:18px; font-weight:700;}
+  .logout-btn{
+    flex:0 0 auto; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.5);
+    background:rgba(255,255,255,.15); color:#fff; font-size:11px; cursor:pointer;
+  }
+  .sync-badge{
+    flex:1 1 auto; font-size:11px; color:rgba(255,255,255,.85); text-align:right; margin-right:4px;
+  }
+  #loginGate{
+    position:fixed; inset:0; z-index:1000; background:var(--bg);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+    padding-top:calc(20px + env(safe-area-inset-top,0px));
+  }
+  .login-card{
+    background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:28px 24px; max-width:320px; width:100%; text-align:center;
+  }
+  .login-icon{font-size:36px; margin-bottom:6px;}
+  .login-card h2{margin:0 0 4px; font-size:18px; color:var(--text);}
+  .login-card p{margin:0 0 16px; font-size:13px; color:var(--muted);}
+  .login-card input{
+    width:100%; padding:10px; border:1px solid var(--input-border); border-radius:8px;
+    background:var(--input-bg); color:var(--text); font-size:16px; text-align:center;
+    margin-bottom:10px; letter-spacing:2px;
+  }
+  .login-card button{
+    width:100%; padding:10px; border:none; border-radius:8px; background:var(--accent2);
+    color:#fff; font-size:14px; font-weight:700; cursor:pointer;
+  }
+  .login-error{ color:#c00000; font-size:12px; margin-top:8px; min-height:14px; }
+  .wrap{max-width:900px; margin:0 auto; padding:14px 12px 40px;}
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:14px; margin-bottom:14px;
+  }
+  .params{display:grid; grid-template-columns:1fr; gap:10px;}
+  .params .row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .params label{font-size:13px; color:var(--muted); flex:1;}
+  .params input{
+    width:70px; padding:7px 8px; border:1px solid var(--input-border);
+    border-radius:8px; background:var(--input-bg); color:var(--text);
+    font-size:14px; text-align:center;
+  }
+  .tabs{
+    display:flex; gap:6px; overflow-x:auto; padding:4px 0 2px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .tabs button{
+    flex:0 0 auto; padding:8px 14px; border-radius:20px; border:1px solid var(--border);
+    background:var(--card); color:var(--text); font-size:13px; font-weight:600;
+    cursor:pointer; white-space:nowrap;
+  }
+  .tabs button.active{background:var(--accent2); color:#fff; border-color:var(--accent2);}
+  .month-total{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--accent); color:#fff; border-radius:12px; padding:14px 16px;
+    margin:6px 0 14px; font-weight:700; font-size:15px;
+  }
+  .month-total .val{font-size:20px;}
+  .year-total{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--total-bg); border:1px solid var(--border); border-radius:12px;
+    padding:12px 16px; margin-bottom:12px; font-weight:700; font-size:13px; color:var(--text);
+  }
+  .year-total .val{font-size:19px; color:var(--accent2);}
+  .year-total .lbl2{font-size:11px; font-weight:400; color:var(--muted); display:block;}
+  .week{
+    border:1px solid var(--border); border-radius:10px; margin-bottom:12px; overflow:hidden;
+  }
+  .week-head{
+    background:var(--week-bg); color:var(--week-text); padding:8px 12px;
+    font-size:13px; font-weight:700;
+  }
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  thead th{
+    background:var(--total-bg); color:var(--muted); font-size:11px; text-transform:uppercase;
+    padding:6px 4px; text-align:center; border-bottom:1px solid var(--border);
+  }
+  tbody td{padding:6px 4px; text-align:center; border-bottom:1px solid var(--border);}
+  tbody td.jour{text-align:left; padding-left:10px; font-weight:600;}
+  tbody td.date{color:var(--muted); font-size:12px;}
+  .time-field{
+    width:100%; max-width:70px; padding:5px 4px; border:1px solid var(--input-border);
+    border-radius:6px; background:var(--input-bg); color:var(--text); font-size:13px;
+    text-align:center;
+  }
+  .time-field:disabled{ background:var(--total-bg); color:var(--muted); border-color:var(--border); }
+  .conge-label{
+    display:flex; align-items:center; gap:4px; font-size:10.5px; color:var(--muted);
+    margin-top:3px; white-space:nowrap; font-weight:400;
+  }
+  .conge-label input{ width:13px; height:13px; margin:0; }
+  .heures{font-weight:600;}
+  tfoot td{padding:8px 6px; font-weight:700; background:var(--total-bg);}
+  tfoot td.lbl{text-align:right; padding-right:10px;}
+  tfoot tr.ot td{background:transparent;}
+  .ot-val{font-weight:700;}
+  .pos{color:var(--ot-pos);}
+  .neg{color:var(--ot-neg);}
+  .zero{color:var(--muted);}
+  .tblwrap{overflow-x:auto;}
+  .legend{font-size:12px; color:var(--muted); margin-top:2px;}
+  .reset-btn{
+    margin-top:8px; padding:8px 14px; border-radius:8px; border:1px solid var(--border);
+    background:var(--card); color:var(--muted); font-size:12px; cursor:pointer;
+  }
+  .sync-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;}
+  .sync-row .reset-btn{margin-top:0;}
+  .theo-info{font-size:12px; color:var(--muted); margin-top:4px;}
+  .week-head{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .export-btn{
+    flex:0 0 auto; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.5);
+    background:rgba(255,255,255,.15); color:var(--week-text); font-size:12px; cursor:pointer;
+  }
+  .month-export-btn{
+    padding:8px 14px; border-radius:8px; border:1px solid var(--border);
+    background:var(--card); color:var(--accent2); font-weight:700; font-size:13px; cursor:pointer;
+  }
+  .toolbar{display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;}
+</style>
+</head>
+<body>
+<div id="loginGate">
+  <div class="login-card">
+    <div class="login-icon">🔒</div>
+    <h2>Heures supplémentaires</h2>
+    <p>Accès protégé — entre le mot de passe.</p>
+    <input type="password" inputmode="numeric" id="loginPass" placeholder="Mot de passe" autocomplete="off">
+    <button id="loginBtn">Se connecter</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+<header>
+  <h1>⏱️ Heures supplémentaires</h1>
+  <span id="syncBadge" class="sync-badge"></span>
+  <button id="logoutBtn" class="logout-btn">Se déconnecter</button>
+</header>
+<div class="wrap">
+
+  <div class="card">
+    <div class="params" id="params"></div>
+    <div class="legend">Modifie les paramètres ci-dessus : tous les mois se recalculent automatiquement. Tes saisies restent enregistrées sur cet appareil.</div>
+    <div class="theo-info" id="theoInfo"></div>
+    <button class="reset-btn" id="resetBtn">Réinitialiser toutes les heures saisies</button>
+    <div class="sync-row">
+      <button class="reset-btn" id="exportBtn">⬇️ Exporter mes données</button>
+      <button class="reset-btn" id="importBtn">⬆️ Importer mes données</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+    </div>
+    <div class="legend">Pour retrouver tes heures sur un autre appareil (ex : ton PC de travail) sans avoir besoin de te connecter : exporte ce petit fichier ici, puis importe-le sur l'autre appareil.</div>
+  </div>
+
+  <div id="yearTotal" class="year-total"></div>
+
+  <div class="tabs" id="tabs"></div>
+  <div class="toolbar">
+    <button class="month-export-btn" id="monthExportBtn">📄 Exporter le mois entier en PDF</button>
+  </div>
+  <div id="monthTotal" class="month-total"></div>
+  <div id="content"></div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const AUTH_KEY = "heuresSupAuth_v1";
+const AUTH_PASSWORD = "160983";
+
+function checkAuth(){
+  try{ return localStorage.getItem(AUTH_KEY) === "1"; }catch(e){ return false; }
+}
+function setAuth(val){
+  try{
+    if(val) localStorage.setItem(AUTH_KEY, "1");
+    else localStorage.removeItem(AUTH_KEY);
+  }catch(e){}
+}
+function showGate(show){
+  document.getElementById("loginGate").style.display = show ? "flex" : "none";
+}
+
+if(checkAuth()){
+  showGate(false);
+}
+
+document.getElementById("loginBtn").addEventListener("click", tryLogin);
+document.getElementById("loginPass").addEventListener("keydown", e=>{
+  if(e.key === "Enter") tryLogin();
+});
+function tryLogin(){
+  const val = document.getElementById("loginPass").value.replace(/[^0-9]/g,"");
+  const errEl = document.getElementById("loginError");
+  if(val === AUTH_PASSWORD){
+    setAuth(true);
+    showGate(false);
+    errEl.textContent = "";
+  } else {
+    errEl.textContent = "Mot de passe incorrect.";
+    document.getElementById("loginPass").value = "";
+  }
+}
+document.getElementById("logoutBtn").addEventListener("click", ()=>{
+  setAuth(false);
+  document.getElementById("loginPass").value = "";
+  showGate(true);
+});
+
+const DATA = [{"name": "Août", "weeks": [["2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06", "2026-08-07", "2026-08-08"], ["2026-08-10", "2026-08-11", "2026-08-12", "2026-08-13", "2026-08-14", "2026-08-15"], ["2026-08-17", "2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21", "2026-08-22"], ["2026-08-24", "2026-08-25", "2026-08-26", "2026-08-27", "2026-08-28", "2026-08-29"]]}, {"name": "Septembre", "weeks": [["2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05"], ["2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-12"], ["2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18", "2026-09-19"], ["2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-25", "2026-09-26"], ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03"]]}, {"name": "Octobre", "weeks": [["2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10"], ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17"], ["2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24"], ["2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31"]]}, {"name": "Novembre", "weeks": [["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-07"], ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14"], ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-21"], ["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27", "2026-11-28"]]}, {"name": "Décembre", "weeks": [["2026-11-30", "2026-12-01", "2026-12-02", "2026-12-03", "2026-12-04", "2026-12-05"], ["2026-12-07", "2026-12-08", "2026-12-09", "2026-12-10", "2026-12-11", "2026-12-12"], ["2026-12-14", "2026-12-15", "2026-12-16", "2026-12-17", "2026-12-18", "2026-12-19"], ["2026-12-21", "2026-12-22", "2026-12-23", "2026-12-24", "2026-12-25", "2026-12-26"], ["2026-12-28", "2026-12-29", "2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02"]]}];
+
+const JOURS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
+const STORE_KEY = "heuresSupData_v1";
+
+const SUPABASE_URL = "https://wqgwskirghhxengbmigi.supabase.co";
+const SUPABASE_KEY = "sb_publishable_Ft3PU2O1Ka5_cTwYCAOmZQ_y9htQD5X";
+const SB_HEADERS = {
+  "apikey": SUPABASE_KEY,
+  "Authorization": "Bearer " + SUPABASE_KEY,
+  "Content-Type": "application/json"
+};
+let syncBadgeEl = null;
+
+function setSyncBadge(state){
+  if(!syncBadgeEl) syncBadgeEl = document.getElementById("syncBadge");
+  if(!syncBadgeEl) return;
+  const map = {
+    ok: ["☁️ Synchronisé", "Tes données sont sauvegardées en ligne (Supabase) et accessibles depuis tout appareil."],
+    saving: ["☁️ Sauvegarde…", "Envoi de tes dernières modifications en cours."],
+    offline: ["⚠️ Hors ligne", "Connexion au serveur impossible — tes données restent sur cet appareil pour l'instant."]
+  };
+  const [txt, title] = map[state] || map.offline;
+  syncBadgeEl.textContent = txt;
+  syncBadgeEl.title = title;
+}
+
+async function fetchRemoteState(){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data`, { headers: SB_HEADERS });
+    if(!res.ok) throw new Error("http "+res.status);
+    const rows = await res.json();
+    if(rows && rows.length && rows[0].data){
+      setSyncBadge("ok");
+      return rows[0].data;
+    }
+    setSyncBadge("ok");
+    return null;
+  }catch(e){
+    setSyncBadge("offline");
+    return null;
+  }
+}
+
+async function pushRemoteState(data){
+  try{
+    setSyncBadge("saving");
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?on_conflict=id`, {
+      method: "POST",
+      headers: { ...SB_HEADERS, "Prefer": "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([{ id: "main", data, updated_at: new Date().toISOString() }])
+    });
+    if(!res.ok) throw new Error("http "+res.status);
+    setSyncBadge("ok");
+  }catch(e){
+    setSyncBadge("offline");
+  }
+}
+
+function loadStore(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){ return {}; }
+}
+function saveStore(store){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){}
+  pushRemoteState(store);
+}
+let store = loadStore();
+if(!store.params) store.params = { objH:38, objM:50, pauseM:35 };
+if(!store.times) store.times = {}; // key: date -> {debut, fin}
+
+async function initRemoteSync(){
+  const remote = await fetchRemoteState();
+  if(remote){
+    if(remote.params) store.params = remote.params;
+    if(remote.times) store.times = remote.times;
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){}
+    renderParams();
+    renderMonth();
+  } else {
+    // no row yet on the server: seed it with whatever we have locally
+    pushRemoteState(store);
+  }
+}
+
+function fmtDateFr(iso){
+  const d = new Date(iso+"T00:00:00");
+  const jours=["dim","lun","mar","mer","jeu","ven","sam"];
+  return jours[d.getDay()] + " " + d.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"});
+}
+
+function isoWeekNumber(iso){
+  const d = new Date(iso+"T00:00:00");
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + 3 - ((d.getDay()+6)%7));
+  const week1 = new Date(d.getFullYear(),0,4);
+  return 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getDay()+6)%7)) / 7);
+}
+
+function timeToMinutes(t){
+  if(!t || !t.includes(":")) return null;
+  const [h,m] = t.split(":").map(Number);
+  if(Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h*60+m;
+}
+
+function computeDayMinutes(debut, fin, pauseM){
+  const a = timeToMinutes(debut), b = timeToMinutes(fin);
+  if(a===null || b===null) return null;
+  let diff = b - a;
+  if(diff < 0) diff += 24*60;
+  diff -= pauseM;
+  return diff;
+}
+
+function getDayMinutes(iso, theoMinutes, pauseM){
+  const rec = store.times[iso] || {};
+  if(rec.conge) return theoMinutes;
+  return computeDayMinutes(rec.debut, rec.fin, pauseM);
+}
+
+function minutesToHHMM(mins){
+  if(mins===null) return "";
+  const sign = mins<0 ? "-" : "";
+  mins = Math.abs(Math.round(mins));
+  const h = Math.floor(mins/60), m = mins%60;
+  return sign + h + "h" + String(m).padStart(2,"0");
+}
+
+function otClass(mins){
+  if(Math.abs(mins) < 1) return "zero";
+  return mins > 0 ? "pos" : "neg";
+}
+
+function signedHHMM(mins){
+  const sign = mins < 0 ? "-" : "+";
+  mins = Math.abs(Math.round(mins));
+  const h = Math.floor(mins/60), m = mins%60;
+  return sign + h + "h" + String(m).padStart(2,"0");
+}
+
+let currentMonth = 0;
+
+function renderParams(){
+  const p = store.params;
+  const el = document.getElementById("params");
+  el.innerHTML = `
+    <div class="row"><label>Objectif hebdomadaire — heures</label><input type="number" id="objH" min="0" max="80" value="${p.objH}"></div>
+    <div class="row"><label>Objectif hebdomadaire — minutes</label><input type="number" id="objM" min="0" max="59" value="${p.objM}"></div>
+    <div class="row"><label>Pause quotidienne (minutes)</label><input type="number" id="pauseM" min="0" max="180" value="${p.pauseM}"></div>
+  `;
+  document.getElementById("objH").addEventListener("input", e=>{ store.params.objH = Number(e.target.value)||0; saveStore(store); renderMonth(); });
+  document.getElementById("objM").addEventListener("input", e=>{ store.params.objM = Number(e.target.value)||0; saveStore(store); renderMonth(); });
+  document.getElementById("pauseM").addEventListener("input", e=>{ store.params.pauseM = Number(e.target.value)||0; saveStore(store); renderMonth(); });
+  updateTheoInfo();
+}
+
+function updateTheoInfo(){
+  const p = store.params;
+  const objMinutes = p.objH*60 + p.objM;
+  const theoMinutes = objMinutes/5;
+  document.getElementById("theoInfo").textContent =
+    `Théorique quotidien (objectif ÷ 5) : ${minutesToHHMM(theoMinutes)}`;
+}
+
+function computeYearTotalMinutes(){
+  const p = store.params;
+  const objMinutes = p.objH*60 + p.objM;
+  const theoMinutes = objMinutes/5;
+  let total = 0;
+  DATA.forEach(month=>{
+    month.weeks.forEach(week=>{
+      let weekMinutes = 0;
+      let hasEntry = false;
+      week.forEach(iso=>{
+        const mins = getDayMinutes(iso, theoMinutes, p.pauseM);
+        if(mins !== null){ weekMinutes += mins; hasEntry = true; }
+      });
+      if(hasEntry) total += weekMinutes - objMinutes;
+    });
+  });
+  return total;
+}
+
+function renderYearTotal(){
+  const mins = computeYearTotalMinutes();
+  const el = document.getElementById("yearTotal");
+  el.innerHTML = `<span><span class="lbl2">Informatif — non inclus dans les PDF</span>Total heures sup. — année complète (Août à Décembre 2026)</span><span class="val">${signedHHMM(mins)}</span>`;
+}
+
+function renderTabs(){
+  const el = document.getElementById("tabs");
+  el.innerHTML = DATA.map((m,i)=>`<button data-i="${i}" class="${i===currentMonth?'active':''}">${m.name}</button>`).join("");
+  el.querySelectorAll("button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      currentMonth = Number(btn.dataset.i);
+      renderTabs();
+      renderMonth();
+    });
+  });
+}
+
+function renderMonth(){
+  const p = store.params;
+  const objMinutes = p.objH*60 + p.objM;
+  const theoMinutes = objMinutes/5;
+  const month = DATA[currentMonth];
+  const content = document.getElementById("content");
+  let html = "";
+  let monthTotalOTmins = 0;
+  updateTheoInfo();
+  renderYearTotal();
+
+  month.weeks.forEach((week, wi)=>{
+    const startFull = fmtDateFr(week[0]).split(" ").slice(1).join(" ");
+    const endFull = fmtDateFr(week[5]).split(" ").slice(1).join(" ");
+    const weekNum = isoWeekNumber(week[0]);
+    const weekId = `w-${currentMonth}-${wi}`;
+
+    html += `<div class="week" id="${weekId}">
+      <div class="week-head">
+        <span>Semaine ${weekNum} — du ${startFull} au ${endFull}</span>
+        <button class="export-btn" data-week-index="${wi}">📄 PDF</button>
+      </div>
+      <div class="tblwrap"><table>
+      <thead><tr><th>Jour</th><th>Début</th><th>Fin</th><th>Heures</th><th>Théo. jour</th><th>Écart jour</th></tr></thead>
+      <tbody>`;
+
+    let weekMinutes = 0;
+    week.forEach((iso, di)=>{
+      const rec = store.times[iso] || {};
+      const mins = getDayMinutes(iso, theoMinutes, p.pauseM);
+      if(mins !== null) weekMinutes += mins;
+      const ecartMins = mins===null ? null : (mins - theoMinutes);
+      const conge = !!rec.conge;
+      html += `<tr>
+        <td class="jour">${JOURS[di]}<div class="date">${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}</div>
+          <label class="conge-label"><input type="checkbox" class="conge-cb" data-date="${iso}" ${conge?'checked':''}> Congé</label>
+        </td>
+        <td><input type="text" inputmode="numeric" class="time-field" data-date="${iso}" data-field="debut" maxlength="5" placeholder="--:--" value="${rec.debut||''}" ${conge?'disabled':''}></td>
+        <td><input type="text" inputmode="numeric" class="time-field" data-date="${iso}" data-field="fin" maxlength="5" placeholder="--:--" value="${rec.fin||''}" ${conge?'disabled':''}></td>
+        <td class="heures">${mins===null ? '—' : minutesToHHMM(mins)}</td>
+        <td>${minutesToHHMM(theoMinutes)}</td>
+        <td class="${ecartMins===null?'':otClass(ecartMins)}">${ecartMins===null ? '—' : signedHHMM(ecartMins)}</td>
+      </tr>`;
+    });
+
+    const weekOTmins = weekMinutes - objMinutes;
+    monthTotalOTmins += weekOTmins;
+
+    html += `</tbody>
+      <tfoot>
+        <tr><td class="lbl" colspan="5">Total travaillé (semaine)</td><td>${minutesToHHMM(weekMinutes)}</td></tr>
+        <tr class="ot"><td class="lbl" colspan="5">Heures supplémentaires (semaine)</td><td class="ot-val ${otClass(weekOTmins)}">${signedHHMM(weekOTmins)}</td></tr>
+      </tfoot>
+      </table></div></div>`;
+  });
+
+  content.innerHTML = html;
+
+  content.querySelectorAll('.time-field').forEach(inp=>{
+    inp.addEventListener("input", ()=>{
+      let digits = inp.value.replace(/[^0-9]/g,"").slice(0,4);
+      inp.value = digits.length > 2 ? digits.slice(0,2)+":"+digits.slice(2) : digits;
+    });
+    inp.addEventListener("change", e=>{
+      const date = e.target.dataset.date, field = e.target.dataset.field;
+      if(!store.times[date]) store.times[date] = {};
+      store.times[date][field] = e.target.value;
+      saveStore(store);
+      renderMonth();
+    });
+  });
+
+  content.querySelectorAll('.conge-cb').forEach(cb=>{
+    cb.addEventListener("change", e=>{
+      const date = e.target.dataset.date;
+      if(!store.times[date]) store.times[date] = {};
+      store.times[date].conge = e.target.checked;
+      saveStore(store);
+      renderMonth();
+    });
+  });
+
+  content.querySelectorAll('.export-btn').forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const wi = Number(btn.dataset.weekIndex);
+      exportWeekPDF(currentMonth, wi);
+    });
+  });
+
+  const mt = document.getElementById("monthTotal");
+  mt.innerHTML = `<span>Total heures sup. — ${month.name}</span><span class="val">${signedHHMM(monthTotalOTmins)}</span>`;
+}
+
+document.getElementById("monthExportBtn").addEventListener("click", ()=>{
+  exportMonthPDF(currentMonth);
+});
+
+/* ---------- PDF export (jsPDF + downloads capability) ---------- */
+
+let downloadsCapPromise = null;
+function getDownloadsCap(){
+  if(!downloadsCapPromise){
+    downloadsCapPromise = (window.claude && window.claude.use)
+      ? window.claude.use("downloads").catch(()=>null)
+      : Promise.resolve(null);
+  }
+  return downloadsCapPromise;
+}
+
+const PAGE_W = 210, MARGIN = 10;
+const COLS = [
+  {label:"Jour", w:26},
+  {label:"Date", w:28},
+  {label:"Début", w:20},
+  {label:"Fin", w:20},
+  {label:"Heures", w:26},
+  {label:"Théo. jour", w:26},
+  {label:"Écart jour", w:34}
+];
+
+function colX(i){
+  let x = MARGIN;
+  for(let k=0;k<i;k++) x += COLS[k].w;
+  return x;
+}
+const TABLE_W = COLS.reduce((s,c)=>s+c.w,0);
+
+function drawHeaderRow(doc, y){
+  doc.setFillColor(68,114,196);
+  doc.rect(MARGIN, y, TABLE_W, 7, "F");
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(8);
+  doc.setFont(undefined,"bold");
+  COLS.forEach((c,i)=>{
+    doc.text(c.label, colX(i)+c.w/2, y+4.7, {align:"center"});
+  });
+  doc.setTextColor(0,0,0);
+  doc.setFont(undefined,"normal");
+  return y+7;
+}
+
+function drawDayRow(doc, y, jourName, iso, debut, fin, heures, theo, ecart){
+  doc.setDrawColor(220,220,220);
+  doc.rect(MARGIN, y, TABLE_W, 7);
+  COLS.forEach((c,i)=>{ if(i>0) doc.line(colX(i), y, colX(i), y+7); });
+  doc.setFontSize(8);
+  const dateStr = iso.slice(8,10)+"/"+iso.slice(5,7)+"/"+iso.slice(0,4);
+  const vals = [jourName, dateStr, debut||"—", fin||"—", heures, theo, ecart];
+  vals.forEach((v,i)=>{
+    doc.text(String(v), colX(i)+COLS[i].w/2, y+4.7, {align:"center"});
+  });
+  return y+7;
+}
+
+function drawTotalRow(doc, y, label, value, fillColor){
+  doc.setFillColor(...fillColor);
+  doc.rect(MARGIN, y, TABLE_W, 7, "F");
+  doc.setFontSize(8.5);
+  doc.setFont(undefined,"bold");
+  doc.text(label, colX(0)+3, y+4.7);
+  doc.text(String(value), colX(6)+COLS[6].w/2, y+4.7, {align:"center"});
+  doc.setFont(undefined,"normal");
+  return y+7;
+}
+
+function computeWeekData(week, params){
+  const theoMinutes = (params.objH*60+params.objM)/5;
+  let weekMinutes = 0;
+  const days = week.map((iso, di)=>{
+    const rec = store.times[iso] || {};
+    const mins = getDayMinutes(iso, theoMinutes, params.pauseM);
+    if(mins!==null) weekMinutes += mins;
+    const ecartMins = mins===null ? null : mins - theoMinutes;
+    return {
+      iso, jour: JOURS[di], debut: rec.conge ? "Congé" : rec.debut, fin: rec.conge ? "" : rec.fin,
+      heures: mins===null ? "—" : minutesToHHMM(mins),
+      theo: minutesToHHMM(theoMinutes),
+      ecart: ecartMins===null ? "—" : signedHHMM(ecartMins)
+    };
+  });
+  const objMinutes = params.objH*60+params.objM;
+  const weekOTmins = weekMinutes - objMinutes;
+  return {days, weekMinutes, weekOTmins};
+}
+
+function drawCheckbox(doc, x, y, label){
+  doc.setDrawColor(0,0,0);
+  doc.setLineWidth(0.3);
+  doc.rect(x, y-3.2, 4, 4);
+  doc.setFontSize(9);
+  doc.setFont(undefined,"normal");
+  doc.text(label, x+6, y);
+}
+
+function drawWeekCheckboxes(doc, y){
+  y += 4;
+  drawCheckbox(doc, MARGIN, y, "Heures à récupérer");
+  drawCheckbox(doc, MARGIN + TABLE_W/2, y, "Heures à payer");
+  return y+6;
+}
+
+function drawWeekBlock(doc, y, week, weekLabel){
+  if(y > 250){ doc.addPage(); y = 15; }
+  doc.setFontSize(11);
+  doc.setFont(undefined,"bold");
+  doc.text(weekLabel, MARGIN, y);
+  y += 5;
+  doc.setFont(undefined,"normal");
+  y = drawHeaderRow(doc, y);
+  const wd = computeWeekData(week, store.params);
+  wd.days.forEach(d=>{
+    y = drawDayRow(doc, y, d.jour, d.iso, d.debut, d.fin, d.heures, d.theo, d.ecart);
+  });
+  y = drawTotalRow(doc, y, "Total travaillé (semaine)", minutesToHHMM(wd.weekMinutes), [217,225,242]);
+  y = drawTotalRow(doc, y, "Heures supplémentaires (semaine)", signedHHMM(wd.weekOTmins), [252,228,214]);
+  y = drawWeekCheckboxes(doc, y);
+  return {y: y+6, weekOTmins: wd.weekOTmins};
+}
+
+function drawMonthFooter(doc, y){
+  if(y > 235){ doc.addPage(); y = 20; }
+
+  y += 6;
+  doc.setDrawColor(0,0,0);
+  doc.setLineWidth(0.3);
+  doc.rect(MARGIN, y-3.2, 5, 5);
+  doc.setFontSize(10);
+  doc.setFont(undefined,"normal");
+  doc.text("Heures à récupérer", MARGIN+7, y);
+  doc.rect(MARGIN + TABLE_W/2, y-3.2, 5, 5);
+  doc.text("Heures à payer", MARGIN + TABLE_W/2 + 7, y);
+
+  y += 18;
+  const colW = TABLE_W/2;
+  doc.setFont(undefined,"bold");
+  doc.setFontSize(9);
+  doc.text("Signature N+1", MARGIN, y);
+  doc.text("Signature personnel", MARGIN+colW, y);
+  doc.setFont(undefined,"normal");
+  doc.text("Gomez Éric", MARGIN, y+5);
+  doc.text("La Guerche Kevin", MARGIN+colW, y+5);
+
+  doc.setDrawColor(150,150,150);
+  doc.line(MARGIN, y+22, MARGIN+colW-10, y+22);
+  doc.line(MARGIN+colW, y+22, MARGIN+colW+colW-10, y+22);
+  return y+22;
+}
+
+async function offerPdf(doc, filename){
+  const blob = doc.output("blob");
+  const cap = await getDownloadsCap();
+  if(cap){
+    try{
+      await cap.save({filename, data: blob});
+      return;
+    }catch(e){
+      // fall through to plain download below
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+}
+
+const EMPLOYEE_NAME = "Kevin La Guerche";
+
+function drawPdfHeader(doc, month){
+  doc.setFontSize(14);
+  doc.setFont(undefined,"bold");
+  doc.text(`Heures supplémentaires — ${month.name} 2026`, MARGIN, 15);
+  doc.setFontSize(10);
+  doc.setFont(undefined,"normal");
+  doc.text(`Salarié : ${EMPLOYEE_NAME}`, MARGIN, 21);
+  return 29;
+}
+
+function exportWeekPDF(monthIndex, weekIndex){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"mm", format:"a4"});
+  const month = DATA[monthIndex];
+  const week = month.weeks[weekIndex];
+  const weekNum = isoWeekNumber(week[0]);
+  const startFull = fmtDateFr(week[0]).split(" ").slice(1).join(" ");
+  const endFull = fmtDateFr(week[5]).split(" ").slice(1).join(" ");
+  const startY = drawPdfHeader(doc, month);
+  drawWeekBlock(doc, startY, week, `Semaine ${weekNum} — du ${startFull} au ${endFull}`);
+  offerPdf(doc, `heures_sup_semaine_${weekNum}_${month.name.toLowerCase()}_2026.pdf`);
+}
+
+function exportMonthPDF(monthIndex){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"mm", format:"a4"});
+  const month = DATA[monthIndex];
+  let y = drawPdfHeader(doc, month);
+  let monthOTmins = 0;
+  month.weeks.forEach(week=>{
+    const weekNum = isoWeekNumber(week[0]);
+    const startFull = fmtDateFr(week[0]).split(" ").slice(1).join(" ");
+    const endFull = fmtDateFr(week[5]).split(" ").slice(1).join(" ");
+    const res = drawWeekBlock(doc, y, week, `Semaine ${weekNum} — du ${startFull} au ${endFull}`);
+    y = res.y;
+    monthOTmins += res.weekOTmins;
+  });
+  if(y > 265){ doc.addPage(); y = 20; }
+  doc.setFillColor(192,0,0);
+  doc.rect(MARGIN, y, TABLE_W, 9, "F");
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(11);
+  doc.setFont(undefined,"bold");
+  doc.text(`TOTAL HEURES SUPPLÉMENTAIRES — ${month.name.toUpperCase()}`, MARGIN+3, y+6);
+  doc.text(signedHHMM(monthOTmins), MARGIN+TABLE_W-3, y+6, {align:"right"});
+  doc.setTextColor(0,0,0);
+  y += 9;
+  drawMonthFooter(doc, y);
+  offerPdf(doc, `heures_sup_${month.name.toLowerCase()}_2026.pdf`);
+}
+
+
+document.getElementById("resetBtn").addEventListener("click", ()=>{
+  if(confirm("Effacer toutes les heures saisies dans tous les mois ?")){
+    store.times = {};
+    saveStore(store);
+    renderMonth();
+  }
+});
+
+document.getElementById("exportBtn").addEventListener("click", ()=>{
+  const blob = new Blob([JSON.stringify(store, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const today = new Date().toISOString().slice(0,10);
+  a.href = url; a.download = `heures_sup_donnees_${today}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+});
+
+document.getElementById("importBtn").addEventListener("click", ()=>{
+  document.getElementById("importFile").click();
+});
+document.getElementById("importFile").addEventListener("change", e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const imported = JSON.parse(reader.result);
+      if(!imported || typeof imported !== "object") throw new Error("format invalide");
+      if(imported.params) store.params = imported.params;
+      if(imported.times) store.times = imported.times;
+      saveStore(store);
+      renderParams();
+      renderMonth();
+      alert("Données importées avec succès.");
+    }catch(err){
+      alert("Fichier invalide, import annulé.");
+    }
+    e.target.value = "";
+  };
+  reader.readAsText(file);
+});
+
+renderParams();
+renderTabs();
+renderMonth();
+initRemoteSync();
+</script>
+</body>
+</html>
